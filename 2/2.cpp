@@ -23,7 +23,102 @@ GLuint textures[2];
 
 // Clears the window and draws the torus.
 void display() {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// Рисуем пол из текстуры
+	auto drawFloor = [&] () {
+		static GLfloat floorVertices[4][3] = {
+			{ -20.0, 0.0, 20.0 },
+			{ 20.0, 0.0, 20.0 },
+			{ 20.0, 0.0, -20.0 },
+			{ -20.0, 0.0, -20.0 },
+		};
+
+		glBindTexture(GL_TEXTURE_2D, textures[1]);
+
+		glBegin(GL_POLYGON);
+		const double plus = 0;
+		glTexCoord2f(0.0+plus, 0.0+plus); glVertex3fv(floorVertices[0]);
+		glTexCoord2f(0.0+plus, 1.0-plus); glVertex3fv(floorVertices[1]);
+		glTexCoord2f(1.0-plus, 1.0-plus); glVertex3fv(floorVertices[2]);
+		glTexCoord2f(1.0-plus, 0.0+plus); glVertex3fv(floorVertices[3]);
+		/*glTexCoord2f(0.0, 0.0); glVertex3fv(floorVertices[0]);
+		glTexCoord2f(0.0, 1.0); glVertex3fv(floorVertices[1]);
+		glTexCoord2f(2, 1.0); glVertex3fv(floorVertices[2]);
+		glTexCoord2f(2, 0.0); glVertex3fv(floorVertices[3]);*/
+		glEnd();
+	};
+	
+	auto drawUp = [&] () {
+		static GLfloat floorVertices[4][3] = {
+			{ -20.0, -3.0, 20.0 },
+			{ 20.0, -3.0, 20.0 },
+			{ 20.0, 3.0, -20.0 },
+			{ -20.0, 3.0, -20.0 },
+		};
+
+		glBindTexture(GL_TEXTURE_2D, textures[1]);
+
+		glBegin(GL_POLYGON);
+		const double plus = -1;
+		glTexCoord2f(0.0+plus, 0.0+plus); glVertex3fv(floorVertices[0]);
+		glTexCoord2f(0.0+plus, 1.0-plus); glVertex3fv(floorVertices[1]);
+		glTexCoord2f(1.0-plus, 1.0-plus); glVertex3fv(floorVertices[2]);
+		glTexCoord2f(1.0-plus, 0.0+plus); glVertex3fv(floorVertices[3]);
+		/*glTexCoord2f(0.0, 0.0); glVertex3fv(floorVertices[0]);
+		glTexCoord2f(0.0, 1.0); glVertex3fv(floorVertices[1]);
+		glTexCoord2f(2, 1.0); glVertex3fv(floorVertices[2]);
+		glTexCoord2f(2, 0.0); glVertex3fv(floorVertices[3]);*/
+		glEnd();
+	};
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_STENCIL_TEST);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDepthMask(GL_FALSE);
+	glStencilFunc(GL_EQUAL, 1, 0xFF);
+	glStencilOp(GL_REPLACE, GL_REPLACE, GL_ZERO);
+
+	// draw stencil pattern
+	glStencilMask(0xFF);
+	glClear(GL_STENCIL_BUFFER_BIT);  // needs mask=0xFF
+	glBegin(GL_QUAD_STRIP);
+	glVertex3f(0, 0, 1);
+	glVertex3f(0, 5, 1);
+	glVertex3f(5, 0, 1);
+	glVertex3f(5, 5, 1);
+	glEnd();
+
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glDepthMask(GL_TRUE);
+	glStencilMask(0x00);
+	// draw where stencil's value is 0
+	glStencilFunc(GL_EQUAL, 0, 0xFF);
+	/* (nothing to draw) */
+	// draw only where stencil's value is 1
+	glStencilFunc(GL_EQUAL, 1, 0xFF);
+
+	drawFloor();
+	drawUp();
+
+	glDisable(GL_STENCIL_TEST);
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	GLboolean save_color_mask[4];
+	GLboolean save_depth_mask;
+	glGetBooleanv(GL_COLOR_WRITEMASK, save_color_mask);
+	glGetBooleanv(GL_DEPTH_WRITEMASK, &save_depth_mask);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDepthMask(GL_TRUE);
+	glBegin(GL_QUAD_STRIP);
+	glVertex3f(0, 0, 1);
+	glVertex3f(0, 5, 1);
+	glVertex3f(5, 0, 1);
+	glVertex3f(5, 5, 1);
+	glEnd();
+	glColorMask(save_color_mask[0], save_color_mask[1], save_color_mask[2], save_color_mask[3]);
+	glDepthMask(save_depth_mask);
+
 
 	// Draw a white torus of outer radius 3, inner radius 0.5 with 15 stacks and 30 slices.
 	glColor3f(1.0, 1.0, 1.0);
@@ -42,61 +137,6 @@ void display() {
 	glBegin(GL_POINTS);
 	glVertex3f(cam_pos.x, cam_pos.y, cam_pos.z);
 	glEnd();
-
-	// Рисуем пол из текстуры
-	auto drawFloor = [&] () {
-		static GLfloat floorVertices[4][3] = {
-			{ -20.0, 0.0, 20.0 },
-			{ 20.0, 0.0, 20.0 },
-			{ 20.0, 0.0, -20.0 },
-			{ -20.0, 0.0, -20.0 },
-		};
-
-		glBindTexture(GL_TEXTURE_2D, textures[0]);
-
-		glBegin(GL_POLYGON);
-		const double plus = 0;
-		glTexCoord2f(0.0+plus, 0.0+plus); glVertex3fv(floorVertices[0]);
-		glTexCoord2f(0.0+plus, 1.0-plus); glVertex3fv(floorVertices[1]);
-		glTexCoord2f(1.0-plus, 1.0-plus); glVertex3fv(floorVertices[2]);
-		glTexCoord2f(1.0-plus, 0.0+plus); glVertex3fv(floorVertices[3]);
-		/*glTexCoord2f(0.0, 0.0); glVertex3fv(floorVertices[0]);
-		glTexCoord2f(0.0, 1.0); glVertex3fv(floorVertices[1]);
-		glTexCoord2f(2, 1.0); glVertex3fv(floorVertices[2]);
-		glTexCoord2f(2, 0.0); glVertex3fv(floorVertices[3]);*/
-		glEnd();
-	};
-	drawFloor();
-	//glFrontFace(GL_CW);
-	//drawFloor();
-	//glFrontFace(GL_CCW);
-
-	auto drawUp = [&] () {
-		static GLfloat floorVertices[4][3] = {
-			{ -20.0, -3.0, 20.0 },
-			{ 20.0, -3.0, 20.0 },
-			{ 20.0, 3.0, -20.0 },
-			{ -20.0, 3.0, -20.0 },
-		};
-
-		glBindTexture(GL_TEXTURE_2D, textures[0]);
-
-		glBegin(GL_POLYGON);
-		const double plus = -1;
-		glTexCoord2f(0.0+plus, 0.0+plus); glVertex3fv(floorVertices[0]);
-		glTexCoord2f(0.0+plus, 1.0-plus); glVertex3fv(floorVertices[1]);
-		glTexCoord2f(1.0-plus, 1.0-plus); glVertex3fv(floorVertices[2]);
-		glTexCoord2f(1.0-plus, 0.0+plus); glVertex3fv(floorVertices[3]);
-		/*glTexCoord2f(0.0, 0.0); glVertex3fv(floorVertices[0]);
-		glTexCoord2f(0.0, 1.0); glVertex3fv(floorVertices[1]);
-		glTexCoord2f(2, 1.0); glVertex3fv(floorVertices[2]);
-		glTexCoord2f(2, 0.0); glVertex3fv(floorVertices[3]);*/
-		glEnd();
-	};
-	drawUp();
-	//glFrontFace(GL_CW);
-	//drawUp();
-	//glFrontFace(GL_CCW);
 
 	glutSwapBuffers();
 }
