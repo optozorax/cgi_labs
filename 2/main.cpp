@@ -51,8 +51,8 @@ private:
 
 double cam_alpha = deg2rad(30);
 double cam_beta = deg2rad(30);
-double cam_distance = 5;
-const int depthMax = 4;
+double cam_distance = 3;
+const int depthMax = 3;
 double pi = _SPOB_PI;
 int w = 800, h = 600;
 
@@ -84,6 +84,7 @@ struct PortalToDraw
 	std::vector<vec3> polygon;
 	glm::mat4 teleport, teleport_inverse;
 	Plane plane;
+	bool isInvert;
 
 	int not_draw;
 };
@@ -126,36 +127,97 @@ void addPortal(const std::vector<vec2>& polygon, const space3& crd1, const space
 	p1.not_draw = portals.size()+1;
 	p2.not_draw = portals.size();
 
+	p1.isInvert = true;
+	p2.isInvert = false;
+
 	portals.push_back(p1);
 	portals.push_back(p2);
 
-	polygons.push_back({{}, {}, false, 0, clr1});
+	/*polygons.push_back({{}, {}, false, 0, clr1});
     for (auto& i : polygon)
 		polygons.back().polygon.push_back(plane3(crd1).from(i) - crd1.k*0.001);
 
 	polygons.push_back({{}, {}, false, 0, clr2});
 	for (auto& i : polygon)
-		polygons.back().polygon.push_back(plane3(crd2).from(i) + crd2.k*0.001);
+		polygons.back().polygon.push_back(plane3(crd2).from(i) + crd2.k*0.001);*/
 }
 
 void drawPortal(const PortalToDraw& portal, int depth) {
 	if (depth > depthMax) return;
 
-	const FrameBuffer& f = FrameBufferGetter::get(w, h, true);
-    f.activate();
-    ClipPlane::activate(portal.plane);
-        glMatrixMode(GL_MODELVIEW);
-        glMultMatrixf(&portal.teleport[0][0]);
-            drawScene(depth+1);
-        glMatrixMode(GL_MODELVIEW);
-        glMultMatrixf(&portal.teleport_inverse[0][0]);
-    ClipPlane::disable();
-    f.disable();
+	glm::mat4 modelview, projection;
+	glGetFloatv(GL_MODELVIEW_MATRIX, &modelview[0][0]);
+	glGetFloatv(GL_PROJECTION_MATRIX, &projection[0][0]);
+	projection = projection * modelview;
+	std::vector<glm::vec4> projected;
+	for (auto& i : portal.polygon)
+		projected.push_back(projection * glm::vec4(i.x, i.y, i.z, 1));
+	projected.push_back(projected.front());
 
-	//FrameBufferDrawer::draw(f);
-	PolygonFramebufferDrawer::draw(f, portal.polygon);
-    FrameBufferGetter::unget();
+	/*double sum = 0;
+	for (int i = 0; i < projected.size() - 1; i++)
+		sum += (projected[i+1].x-projected[i].x)*(projected[i+1].y+projected[i].y);*/
+
+	// calculate three axes
+	glm::vec4 a1(projected[0]), b1(projected[1]), c1(projected[2]);
+	glm::vec3 a(a1.x, a1.y, a1.z), b(b1.x, b1.y, b1.z), c(c1.x, c1.y, c1.z);
+
+	glm::vec3 axis_x = glm::normalize(b - a);
+	glm::vec3 axis_y = glm::normalize(c - a);
+	glm::vec3 axis_z = glm::cross(axis_x, axis_y);
+
+	// construct a transform matrix from our axes
+
+	glm::mat3x3 object_transform;
+	object_transform[0] = axis_x;
+	object_transform[1] = axis_y;
+	object_transform[2] = axis_z;
+
+	// invert the matrix
+
+	glm::mat3x3 object_to_world_transform = glm::inverse(object_transform);
+
+	// transform the outward normal using the matrix
+
+	glm::vec3 normal = object_to_world_transform * axis_z;
+
+	// check winding
+
+	/*if (normal.z > 0.f)
+	{
+		// Counter-clockwise winding
+	}
+	else
+	{
+		// Clockwise winding
+	}*/
+
+	//if ((sum > 0 && portal.isInvert) || (sum < 0 && !portal.isInvert)) {
+	//if ((normal.z > 0 && !portal.isInvert) || (normal.z < 0 && portal.isInvert)) {
+		const FrameBuffer& f = FrameBufferGetter::get(w, h, true);
+		f.activate();
+		ClipPlane::activate(portal.plane);
+			glMatrixMode(GL_MODELVIEW);
+			glMultMatrixf(&portal.teleport[0][0]);
+				drawScene(depth+1);
+			glMatrixMode(GL_MODELVIEW);
+			glMultMatrixf(&portal.teleport_inverse[0][0]);
+		ClipPlane::disable();
+		f.disable();
+
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		if (portal.isInvert) glFrontFace(GL_CW);
+		PolygonFramebufferDrawer::draw(f, portal.polygon);
+		if (portal.isInvert) glFrontFace(GL_CCW);
+		glDisable(GL_CULL_FACE);
+		FrameBufferGetter::unget();
+	//}
 }
+
+std::vector<int> draw_stack = {-1, 3, 0, 0};
+//std::vector<int> draw_stack2 = {-1, 3, 0, 1};
+std::vector<int> draw_stack2 = {-1, 1};
 
 void drawScene(int depth) {
 	if (depth > depthMax) return;
@@ -164,8 +226,8 @@ void drawScene(int depth) {
 	const FrameBuffer& f1 = FrameBufferGetter::get(w, h, true);
 
 	for (int i = 0; i < portals.size(); ++i) {
-    	if (not_draw_stack.back() != portals[i].not_draw) {
-    		not_draw_stack.push_back(i);
+    	//if (not_draw_stack.back() != i) {
+    		not_draw_stack.push_back(portals[i].not_draw);
     		f1.activate();
 			drawPortal(portals[i], depth);
     		f1.disable(false);
@@ -174,13 +236,17 @@ void drawScene(int depth) {
     		f.activate(false);
 			FrameBufferMerger::merge(f, f1);
 			f.disable(false);
-    	}
+    	//}
 	}
 
 	FrameBufferDrawer::draw(f);
 
 	FrameBufferGetter::unget();
 	FrameBufferGetter::unget();
+
+	auto first = polygons.front();
+
+	//if (depth != 1) polygons.erase(polygons.begin());
 
 	for (auto& i : polygons) {
         if (i.isTextured) {
@@ -198,6 +264,8 @@ void drawScene(int depth) {
             glEnd();
         }
 	}
+
+	//if (depth != 1) polygons.insert(polygons.begin(), first);
 }
 
 void display() {
@@ -334,19 +402,24 @@ void init() {
 
 	//-------------------------------------------------------------------------
 	// Добавляем портал и его контур
-
 	std::vector<vec2> pPoly;
 	pPoly.push_back({0, 0});
 	pPoly.push_back({-0.3, 0.7});
 	pPoly.push_back({0.3, 0.7});
 
-	crd3 cPoly;
+	plane3 cPoly;
 	cPoly.pos = vec3(0.5, 0.5, 0.5);
 	cPoly.i = vec3(1, 0, 0);
 	cPoly.j = vec3(0, 1, 0);
 	cPoly.k = vec3(0, 0, 1);
 
-	
+	polygons.push_back({{}, {}, false, 0, vec3(0.5, 0.5, 0.5)});
+	polygons.back().polygon.push_back(cPoly.from(pPoly[0]));
+	polygons.back().polygon.push_back(cPoly.from(pPoly[1]));
+	polygons.back().polygon.push_back(cPoly.from(pPoly[2]));
+
+	cam_pos = cPoly.from((pPoly[0] + pPoly[1] + pPoly[2])/3.0);
+
 	double angle = _SPOB_PI/6;
 	double xl = 0.5 / cos(angle);
 
@@ -416,24 +489,6 @@ void init() {
 	polygons.back().polygon.push_back({5.0, 5.0, 5.0});
 	polygons.back().polygon.push_back({5.0, -5.0, 5.0});
 	polygons.back().polygon.push_back({5.0, -5.0, -5.0});
-
-	{
-	std::vector<vec2> pPoly;
-	pPoly.push_back({0, 0});
-	pPoly.push_back({-0.4, 0.7});
-	pPoly.push_back({0.4, 0.7});
-
-	plane3 cPoly;
-	cPoly.pos = vec3(0.5, 0.5, 0.5);
-	cPoly.i = vec3(1, 0, 0);
-	cPoly.k = vec3(0, 1, 0);
-	cPoly.j = vec3(0, 0, 1);
-
-	polygons.push_back({{}, {}, false, 0, vec3(0.5, 0.5, 0.5)});
-	polygons.back().polygon.push_back(cPoly.from(pPoly[0]));
-	polygons.back().polygon.push_back(cPoly.from(pPoly[1]));
-	polygons.back().polygon.push_back(cPoly.from(pPoly[2]));
-	}
 
 	update_cam();
 }
