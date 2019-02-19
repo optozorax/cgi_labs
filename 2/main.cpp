@@ -143,12 +143,11 @@ void addPortal(const std::vector<vec2>& polygon, const space3& crd1, const space
 		polygons.back().polygon.push_back(plane3(crd2).from(i) + crd2.k*0.001);
 }
 
-std::vector<std::vector<glm::vec4>> projected_mas;
-std::vector<std::vector<glm::vec4>> half_space_mas;
-
 void drawPortal(const PortalToDraw& portal, int depth) {
 	if (depth > depthMax) return;
 
+	// Проверка ориентации полигона рисуемого портала, если эта ориентация неправильная, то портал не рисуется
+	// Необходимо для оптимизации, а так же для отсутствия артефактов на обратной стороне портала
 	std::array<GLdouble, 16> projection;
 	glm::dmat4 modelview;
 	std::array<GLdouble, 3>  screen_coords;
@@ -173,17 +172,17 @@ void drawPortal(const PortalToDraw& portal, int depth) {
 		sum += (projected[i+1].x-projected[i].x)*(projected[i+1].y+projected[i].y);
 
 	bool isPortalFaceCull = (sum > 0 && portal.isInvert) || (sum < 0 && !portal.isInvert);
+	if (!isPortalFaceCull) return;
 
-	std::array<GLdouble, 4> plane;
-	glGetClipPlane(GL_CLIP_PLANE0, plane.data());
-
-	glGetDoublev(GL_MODELVIEW_MATRIX, &modelview[0][0]);
-
-	if (not_draw_stack.size() >= 3) {
+	// Проверка обрезания текущего полигона портала обрезающей плоскостью. Если полигон полностью входит в отбрасываемую полуплоскость, то и его содержимое рисовать нет смысла
+	// Делать эту проверку очень важно не только для оптимизации, но ещё и для рисования криволинейных порталов. Так как если эта опция не имеется, портал, который не обрезался плоскостью, будет нарисован, и будет перекрывать своим изображением изображение портала внутри портала.
+	if (!ClipPlane::p_stack.empty()) {
 		auto pplane = ClipPlane::p_stack.back();
 
 		glm::vec4 pll(pplane.a, pplane.b, pplane.c, pplane.d);
 		pll = pll * glm::inverse(modelview);
+
+		std::array<GLdouble, 4> plane;
 
 		plane[0] = pll.x;
 		plane[1] = pll.y;
@@ -196,78 +195,27 @@ void drawPortal(const PortalToDraw& portal, int depth) {
 			double planeValue = (plane[0]*mulled.x + plane[1]*mulled.y + plane[2]*mulled.z + plane[3]);
 			isOnHalfSpace |= planeValue > 0.001;
 		}
-		if (!isOnHalfSpace) {
-			half_space_mas.push_back(projected);
-
-			for (auto& i : not_draw_stack) {
-				std::cout << i << " ";
-			}
-			std::cout << "x" << std::endl;
-			return;
-		}
+		if (!isOnHalfSpace) return;
 	}
 
+	// Рисование содержимого портала в framebuffer
 	const FrameBuffer& f = FrameBufferGetter::get(w, h, true);
-	if (isPortalFaceCull) {
-		f.activate();
-		ClipPlane::activate(portal.plane);
-			glMatrixMode(GL_MODELVIEW);
-			glMultMatrixf(&portal.teleport[0][0]);
-				drawScene(depth+1);
-			glMatrixMode(GL_MODELVIEW);
-			glMultMatrixf(&portal.teleport_inverse[0][0]);
-		ClipPlane::disable();
-		f.disable();
+	f.activate();
+	ClipPlane::activate(portal.plane);
+		glMatrixMode(GL_MODELVIEW);
+		glMultMatrixf(&portal.teleport[0][0]);
+			drawScene(depth+1);
+		glMatrixMode(GL_MODELVIEW);
+		glMultMatrixf(&portal.teleport_inverse[0][0]);
+	ClipPlane::disable();
+	f.disable();
 
-		PolygonFramebufferDrawer::draw(f, portal.polygon);
-	} else {
-		if (depth == 1)
-			projected_mas.push_back(projected);
-	}
+	PolygonFramebufferDrawer::draw(f, portal.polygon);
 	FrameBufferGetter::unget();
 }
 
-std::vector<int> draw_stack = {-1, 3, 0, 0};
-//std::vector<int> draw_stack2 = {-1, 3, 0, 1};
-std::vector<int> draw_stack2 = {-1, 1};
-std::vector<std::vector<int>> allowed_depth = {
-{-1, 0, 0, 0}, 
-{-1, 0, 0, 2}, 
-{-1, 0, 2, 0}, 
-{-1, 1, 1, 1}, 
-{-1, 1, 1, 2}, 
-{-1, 1, 1, 3}, 
-{-1, 1, 2, 0}, 
-{-1, 1, 2, 2},
-{-1, 2, 0, 0}, 
-{-1, 2, 0, 2}, 
-{-1, 2, 2, 0}, 
-{-1, 2, 2, 2}, 
-
-{-1, 1, 2, 1}, 
-{-1, 1, 3, 1}, 
-{-1, 1, 3, 3},
-};
-
-/*
-Почему-то 3 0 не рисуется криволинейный портал, а вот 3 0 0 рисуется. Причем почему-то вылетает при рисовании только одного элемента разрешенной глубины.
-*/
-
 void drawScene(int depth) {
-	if (depth > depthMax) {
-		for (auto& i : not_draw_stack) {
-			std::cout << i << " ";
-		}
-		std::cout << std::endl;
-		return;
-	}
-
-	if (depth == 1) glClearColor(0.4, 0.0, 0.0, 1.0);
-	if (depth == 2) glClearColor(0.0, 0.4, 0.0, 1.0);
-	if (depth == 3) glClearColor(0.0, 0.0, 0.4, 1.0);
-	if (depth == 4) glClearColor(0.4, 0.4, 0.0, 1.0);
-	if (depth == 5) glClearColor(0.4, 0.0, 0.4, 1.0);
-	if (depth == 6) glClearColor(0.0, 0.4, 0.4, 1.0);
+	if (depth > depthMax) return;
 
 	const FrameBuffer& f = FrameBufferGetter::get(w, h, true);
 	const FrameBuffer& f1 = FrameBufferGetter::get(w, h, true);
@@ -286,66 +234,10 @@ void drawScene(int depth) {
     	}
 	}
 
-	/*if (depth == 1) {
-		f1.activate();
-		drawPortal(portals[3], depth);
-		f1.disable(false);
-
-		f.activate(false);
-		FrameBufferMerger::merge(f, f1);
-		f.disable(false);
-	}
-
-	if (depth == 2) {
-		f1.activate();
-		drawPortal(portals[0], depth);
-		f1.disable(false);
-
-		f.activate(false);
-		FrameBufferMerger::merge(f, f1);
-		f.disable(false);
-	}*/
-
-	/*if (depth < 4) {
-		int k = 0;
-		for (int i = 0; i < allowed_depth.size(); i++) {
-			for (int j = 0; j < not_draw_stack.size(); j++) {
-				if (not_draw_stack[j] != allowed_depth[i][j])
-					goto next_depth;
-			}
-			if (i != 0) {
-				bool notGoto = true;
-				for (int j = 0; j < not_draw_stack.size()+1; j++) {
-					if (allowed_depth[i-1][j] != allowed_depth[i][j])
-						notGoto = false;
-				}
-				if (notGoto)
-					goto next_depth;
-			}
-			k = allowed_depth[i][not_draw_stack.size()];
-
-			not_draw_stack.push_back(k);
-			f1.activate();
-			drawPortal(portals[k], depth);
-			f1.disable(false);
-			not_draw_stack.pop_back();
-
-			f.activate(false);
-			FrameBufferMerger::merge(f, f1);
-			f.disable(false);
-
-			next_depth:;
-		}
-	}*/
-
 	FrameBufferDrawer::draw(f);
 
 	FrameBufferGetter::unget();
 	FrameBufferGetter::unget();
-
-	auto first = polygons.front();
-
-	//if (depth != 1) polygons.erase(polygons.begin());
 
 	for (auto& i : polygons) {
         if (i.isTextured) {
@@ -363,8 +255,6 @@ void drawScene(int depth) {
             glEnd();
         }
 	}
-
-	//if (depth != 1) polygons.insert(polygons.begin(), first);
 }
 
 void display() {
@@ -384,54 +274,6 @@ void display() {
 	f.disable();
 	FrameBufferDrawer::draw(f);
 	FrameBufferGetter::unget();
-
-	std::cout << std::endl;
-	std::cout << std::endl;
-
-	//std::cout << projected_mas.size() << " ";
-
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	gluOrtho2D(0, w, 0, h);
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-
-	glPointSize(6);
-	for (auto& i : projected_mas) {
-		glColor4f(1.0, 1.0, 1.0, 0.0);
-		glBegin(GL_POLYGON);
-		for (auto& j : i) {
-			glVertex2f(j.x, j.y);
-		}
-		glEnd();
-
-		glColor4f(1.0, 1.0, 1.0, 1.0);
-		glBegin(GL_POINTS);
-		for (auto& j : i) {
-			glVertex2f(j.x, j.y);
-		}
-		glEnd();
-	}
-
-	glPointSize(6);
-	for (auto& i : half_space_mas) {
-		glColor4f(0.5, 1.0, 0.5, 1.0);
-		glBegin(GL_POINTS);
-		for (auto& j : i) {
-			glVertex2f(j.x, j.y);
-		}
-		glEnd();
-	}
-
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-
-	projected_mas.clear();
-	half_space_mas.clear();
 
 	glutSwapBuffers();
 }
