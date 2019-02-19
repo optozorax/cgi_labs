@@ -12,6 +12,6 @@ class ClipPlane {
 public:
 	static void activate(const Plane& p);
 	static void disable(void);
-private:
+//private:
 	static std::vector<Plane> p_stack;
 };

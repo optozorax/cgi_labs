@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <spob/spob.h>
+#include <array>
 
 #include "plane.h"
 #include "shader.h"
@@ -133,68 +134,81 @@ void addPortal(const std::vector<vec2>& polygon, const space3& crd1, const space
 	portals.push_back(p1);
 	portals.push_back(p2);
 
-	/*polygons.push_back({{}, {}, false, 0, clr1});
+	polygons.push_back({{}, {}, false, 0, clr1});
     for (auto& i : polygon)
 		polygons.back().polygon.push_back(plane3(crd1).from(i) - crd1.k*0.001);
 
 	polygons.push_back({{}, {}, false, 0, clr2});
 	for (auto& i : polygon)
-		polygons.back().polygon.push_back(plane3(crd2).from(i) + crd2.k*0.001);*/
+		polygons.back().polygon.push_back(plane3(crd2).from(i) + crd2.k*0.001);
 }
+
+std::vector<std::vector<glm::vec4>> projected_mas;
+std::vector<std::vector<glm::vec4>> half_space_mas;
 
 void drawPortal(const PortalToDraw& portal, int depth) {
 	if (depth > depthMax) return;
 
-	glm::mat4 modelview, projection;
-	glGetFloatv(GL_MODELVIEW_MATRIX, &modelview[0][0]);
-	glGetFloatv(GL_PROJECTION_MATRIX, &projection[0][0]);
-	projection = projection * modelview;
+	std::array<GLdouble, 16> projection;
+	glm::dmat4 modelview;
+	std::array<GLdouble, 3>  screen_coords;
+	std::array<GLint, 4>  viewport;
+
+	glGetDoublev(GL_PROJECTION_MATRIX, projection.data());
+	glGetDoublev(GL_MODELVIEW_MATRIX, &modelview[0][0]);
+	glGetIntegerv(GL_VIEWPORT, viewport.data());
+
 	std::vector<glm::vec4> projected;
-	for (auto& i : portal.polygon)
-		projected.push_back(projection * glm::vec4(i.x, i.y, i.z, 1));
+	for (auto& i : portal.polygon) {
+		glm::vec3 world_coords(i.x, i.y, i.z);
+		gluProject(world_coords[0], world_coords[1], world_coords[2],
+				   &modelview[0][0], projection.data(), viewport.data(),
+				   &screen_coords[0], &screen_coords[1], &screen_coords[2]);
+		projected.push_back(glm::vec4(screen_coords[0], screen_coords[1], screen_coords[2], 1.0));
+	}
 	projected.push_back(projected.front());
 
-	/*double sum = 0;
+	double sum = 0;
 	for (int i = 0; i < projected.size() - 1; i++)
-		sum += (projected[i+1].x-projected[i].x)*(projected[i+1].y+projected[i].y);*/
+		sum += (projected[i+1].x-projected[i].x)*(projected[i+1].y+projected[i].y);
 
-	// calculate three axes
-	glm::vec4 a1(projected[0]), b1(projected[1]), c1(projected[2]);
-	glm::vec3 a(a1.x, a1.y, a1.z), b(b1.x, b1.y, b1.z), c(c1.x, c1.y, c1.z);
+	bool isPortalFaceCull = (sum > 0 && portal.isInvert) || (sum < 0 && !portal.isInvert);
 
-	glm::vec3 axis_x = glm::normalize(b - a);
-	glm::vec3 axis_y = glm::normalize(c - a);
-	glm::vec3 axis_z = glm::cross(axis_x, axis_y);
+	std::array<GLdouble, 4> plane;
+	glGetClipPlane(GL_CLIP_PLANE0, plane.data());
 
-	// construct a transform matrix from our axes
+	glGetDoublev(GL_MODELVIEW_MATRIX, &modelview[0][0]);
 
-	glm::mat3x3 object_transform;
-	object_transform[0] = axis_x;
-	object_transform[1] = axis_y;
-	object_transform[2] = axis_z;
+	if (not_draw_stack.size() >= 3) {
+		auto pplane = ClipPlane::p_stack.back();
 
-	// invert the matrix
+		glm::vec4 pll(pplane.a, pplane.b, pplane.c, pplane.d);
+		pll = pll * glm::inverse(modelview);
 
-	glm::mat3x3 object_to_world_transform = glm::inverse(object_transform);
+		plane[0] = pll.x;
+		plane[1] = pll.y;
+		plane[2] = pll.z;
+		plane[3] = pll.w;
 
-	// transform the outward normal using the matrix
+		bool isOnHalfSpace = depth == 1;
+		for (auto& i : portal.polygon) {
+			glm::vec4 mulled = modelview * glm::vec4(i.x, i.y, i.z, 1);
+			double planeValue = (plane[0]*mulled.x + plane[1]*mulled.y + plane[2]*mulled.z + plane[3]);
+			isOnHalfSpace |= planeValue > 0.001;
+		}
+		if (!isOnHalfSpace) {
+			half_space_mas.push_back(projected);
 
-	glm::vec3 normal = object_to_world_transform * axis_z;
-
-	// check winding
-
-	/*if (normal.z > 0.f)
-	{
-		// Counter-clockwise winding
+			for (auto& i : not_draw_stack) {
+				std::cout << i << " ";
+			}
+			std::cout << "x" << std::endl;
+			return;
+		}
 	}
-	else
-	{
-		// Clockwise winding
-	}*/
 
-	//if ((sum > 0 && portal.isInvert) || (sum < 0 && !portal.isInvert)) {
-	//if ((normal.z > 0 && !portal.isInvert) || (normal.z < 0 && portal.isInvert)) {
-		const FrameBuffer& f = FrameBufferGetter::get(w, h, true);
+	const FrameBuffer& f = FrameBufferGetter::get(w, h, true);
+	if (isPortalFaceCull) {
 		f.activate();
 		ClipPlane::activate(portal.plane);
 			glMatrixMode(GL_MODELVIEW);
@@ -205,29 +219,62 @@ void drawPortal(const PortalToDraw& portal, int depth) {
 		ClipPlane::disable();
 		f.disable();
 
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		if (portal.isInvert) glFrontFace(GL_CW);
 		PolygonFramebufferDrawer::draw(f, portal.polygon);
-		if (portal.isInvert) glFrontFace(GL_CCW);
-		glDisable(GL_CULL_FACE);
-		FrameBufferGetter::unget();
-	//}
+	} else {
+		if (depth == 1)
+			projected_mas.push_back(projected);
+	}
+	FrameBufferGetter::unget();
 }
 
 std::vector<int> draw_stack = {-1, 3, 0, 0};
 //std::vector<int> draw_stack2 = {-1, 3, 0, 1};
 std::vector<int> draw_stack2 = {-1, 1};
+std::vector<std::vector<int>> allowed_depth = {
+{-1, 0, 0, 0}, 
+{-1, 0, 0, 2}, 
+{-1, 0, 2, 0}, 
+{-1, 1, 1, 1}, 
+{-1, 1, 1, 2}, 
+{-1, 1, 1, 3}, 
+{-1, 1, 2, 0}, 
+{-1, 1, 2, 2},
+{-1, 2, 0, 0}, 
+{-1, 2, 0, 2}, 
+{-1, 2, 2, 0}, 
+{-1, 2, 2, 2}, 
+
+{-1, 1, 2, 1}, 
+{-1, 1, 3, 1}, 
+{-1, 1, 3, 3},
+};
+
+/*
+Почему-то 3 0 не рисуется криволинейный портал, а вот 3 0 0 рисуется. Причем почему-то вылетает при рисовании только одного элемента разрешенной глубины.
+*/
 
 void drawScene(int depth) {
-	if (depth > depthMax) return;
+	if (depth > depthMax) {
+		for (auto& i : not_draw_stack) {
+			std::cout << i << " ";
+		}
+		std::cout << std::endl;
+		return;
+	}
+
+	if (depth == 1) glClearColor(0.4, 0.0, 0.0, 1.0);
+	if (depth == 2) glClearColor(0.0, 0.4, 0.0, 1.0);
+	if (depth == 3) glClearColor(0.0, 0.0, 0.4, 1.0);
+	if (depth == 4) glClearColor(0.4, 0.4, 0.0, 1.0);
+	if (depth == 5) glClearColor(0.4, 0.0, 0.4, 1.0);
+	if (depth == 6) glClearColor(0.0, 0.4, 0.4, 1.0);
 
 	const FrameBuffer& f = FrameBufferGetter::get(w, h, true);
 	const FrameBuffer& f1 = FrameBufferGetter::get(w, h, true);
 
 	for (int i = 0; i < portals.size(); ++i) {
-    	//if (not_draw_stack.back() != i) {
-    		not_draw_stack.push_back(portals[i].not_draw);
+    	if (not_draw_stack.back() != portals[i].not_draw) {
+    		not_draw_stack.push_back(i);
     		f1.activate();
 			drawPortal(portals[i], depth);
     		f1.disable(false);
@@ -236,8 +283,60 @@ void drawScene(int depth) {
     		f.activate(false);
 			FrameBufferMerger::merge(f, f1);
 			f.disable(false);
-    	//}
+    	}
 	}
+
+	/*if (depth == 1) {
+		f1.activate();
+		drawPortal(portals[3], depth);
+		f1.disable(false);
+
+		f.activate(false);
+		FrameBufferMerger::merge(f, f1);
+		f.disable(false);
+	}
+
+	if (depth == 2) {
+		f1.activate();
+		drawPortal(portals[0], depth);
+		f1.disable(false);
+
+		f.activate(false);
+		FrameBufferMerger::merge(f, f1);
+		f.disable(false);
+	}*/
+
+	/*if (depth < 4) {
+		int k = 0;
+		for (int i = 0; i < allowed_depth.size(); i++) {
+			for (int j = 0; j < not_draw_stack.size(); j++) {
+				if (not_draw_stack[j] != allowed_depth[i][j])
+					goto next_depth;
+			}
+			if (i != 0) {
+				bool notGoto = true;
+				for (int j = 0; j < not_draw_stack.size()+1; j++) {
+					if (allowed_depth[i-1][j] != allowed_depth[i][j])
+						notGoto = false;
+				}
+				if (notGoto)
+					goto next_depth;
+			}
+			k = allowed_depth[i][not_draw_stack.size()];
+
+			not_draw_stack.push_back(k);
+			f1.activate();
+			drawPortal(portals[k], depth);
+			f1.disable(false);
+			not_draw_stack.pop_back();
+
+			f.activate(false);
+			FrameBufferMerger::merge(f, f1);
+			f.disable(false);
+
+			next_depth:;
+		}
+	}*/
 
 	FrameBufferDrawer::draw(f);
 
@@ -285,6 +384,55 @@ void display() {
 	f.disable();
 	FrameBufferDrawer::draw(f);
 	FrameBufferGetter::unget();
+
+	std::cout << std::endl;
+	std::cout << std::endl;
+
+	//std::cout << projected_mas.size() << " ";
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0, w, 0, h);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glPointSize(6);
+	for (auto& i : projected_mas) {
+		glColor4f(1.0, 1.0, 1.0, 0.0);
+		glBegin(GL_POLYGON);
+		for (auto& j : i) {
+			glVertex2f(j.x, j.y);
+		}
+		glEnd();
+
+		glColor4f(1.0, 1.0, 1.0, 1.0);
+		glBegin(GL_POINTS);
+		for (auto& j : i) {
+			glVertex2f(j.x, j.y);
+		}
+		glEnd();
+	}
+
+	glPointSize(6);
+	for (auto& i : half_space_mas) {
+		glColor4f(0.5, 1.0, 0.5, 1.0);
+		glBegin(GL_POINTS);
+		for (auto& j : i) {
+			glVertex2f(j.x, j.y);
+		}
+		glEnd();
+	}
+
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+
+	projected_mas.clear();
+	half_space_mas.clear();
+
 	glutSwapBuffers();
 }
 
@@ -381,8 +529,8 @@ void init() {
 	vec3 portalColor0 = vec3(1, 0.5, 0.15); // orange
 	vec3 portalColor1 = vec3(0.1, 0.55, 1); // blue
 
-	// init portals
-	/*std::vector<vec2> pPortal;
+	/*// init portals
+	std::vector<vec2> pPortal;
 	pPortal.push_back({-1, -1});
 	pPortal.push_back({-1, 1});
 	pPortal.push_back({1, 1});
@@ -390,8 +538,8 @@ void init() {
 
 	crd3 cPortal1;
 	cPortal1.i = vec3(1, 0, 0);
-	cPortal1.j = vec3(0, 1, 0);
-	cPortal1.k = vec3(0, 0, 1);
+	cPortal1.k = vec3(0, 1, 0);
+	cPortal1.j = vec3(0, 0, 1);
 
 	cPortal1.pos = -cPortal1.k * 2.5;
 
@@ -537,6 +685,16 @@ int main(int argc, char** argv) {
 
 	glEnable(GL_DEPTH_TEST);
 	//glEnable(GL_TEXTURE_2D);
+
+	// Включаем сглаживание
+	{
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND);
+		glEnable(GL_POINT_SMOOTH);
+		glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
+		glEnable(GL_LINE_SMOOTH);
+		glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+	}
 
 	init();
 	glutMainLoop();

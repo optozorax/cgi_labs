@@ -78,7 +78,7 @@ void FrameBuffer::activate(bool isClear) const {
 
 	if (isClear) {
         // Clear the screen
-        glClearColor(0.3, 0.3, 0.3, 1.0f);
+        //glClearColor(0.3, 0.3, 0.3, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 }
@@ -93,7 +93,7 @@ void FrameBuffer::disable(bool isClear) const {
 	// Clear the screen
 
 	if (isClear) {
-		glClearColor(0.3, 0.3, 0.3, 1.0f);
+		//glClearColor(0.3, 0.3, 0.3, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
 }
