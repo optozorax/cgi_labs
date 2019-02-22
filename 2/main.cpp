@@ -179,7 +179,7 @@ void drawPortal(const PortalToDraw& portal, int depth) {
 	if (!ClipPlane::p_stack.empty()) {
 		auto pplane = ClipPlane::p_stack.back();
 
-		glm::vec4 pll(pplane.a, pplane.b, pplane.c, pplane.d);
+		/*glm::vec4 pll(pplane.a, pplane.b, pplane.c, pplane.d);
 		pll = pll * glm::inverse(modelview);
 
 		std::array<GLdouble, 4> plane;
@@ -187,12 +187,13 @@ void drawPortal(const PortalToDraw& portal, int depth) {
 		plane[0] = pll.x;
 		plane[1] = pll.y;
 		plane[2] = pll.z;
-		plane[3] = pll.w;
+		plane[3] = pll.w;*/
 
 		bool isOnHalfSpace = depth == 1;
 		for (auto& i : portal.polygon) {
-			glm::vec4 mulled = modelview * glm::vec4(i.x, i.y, i.z, 1);
-			double planeValue = (plane[0]*mulled.x + plane[1]*mulled.y + plane[2]*mulled.z + plane[3]);
+			//glm::vec4 mulled = modelview * glm::vec4(i.x, i.y, i.z, 1);
+			//double planeValue = (plane[0]*mulled.x + plane[1]*mulled.y + plane[2]*mulled.z + plane[3]);
+			double planeValue = pplane.a * i.x + pplane.b * i.y + pplane.c * i.z + pplane.d;
 			isOnHalfSpace |= planeValue > 0.001;
 		}
 		if (!isOnHalfSpace) return;
