@@ -151,30 +151,30 @@ void menu(int num) {
 //-----------------------------------------------------------------------------
 void createMenu(void) {
 	int quadMenu = glutCreateMenu(menu);
-	glutAddMenuEntry("Add point    a", 3);
-	glutAddMenuEntry("Delete last point    d", 4);
+	glutAddMenuEntry("Add point             a", 3);
+	glutAddMenuEntry("Delete last point     d", 4);
 
 	glutAddMenuEntry("Increase red color    r", 5);
-	glutAddMenuEntry("Increase green color    g", 6);
-	glutAddMenuEntry("Increase blue color    b", 7);
-	glutAddMenuEntry("Increase alpha color    l", 8);
+	glutAddMenuEntry("Increase green color  g", 6);
+	glutAddMenuEntry("Increase blue color   b", 7);
+	glutAddMenuEntry("Increase alpha color  l", 8);
 
-	glutAddMenuEntry("Decrease red color    r", 9);
-	glutAddMenuEntry("Decrease green color    g", 10);
-	glutAddMenuEntry("Decrease blue color    b", 11);
-	glutAddMenuEntry("Decrease alpha color    l", 12);
+	glutAddMenuEntry("Decrease red color    R", 9);
+	glutAddMenuEntry("Decrease green color  G", 10);
+	glutAddMenuEntry("Decrease blue color   B", 11);
+	glutAddMenuEntry("Decrease alpha color  L", 12);
 
-	glutAddMenuEntry("Rotate clockwise    Mouse wheel", 13);
-	glutAddMenuEntry("Rotate anticlockwise    Mouse wheel", 14);
+	glutAddMenuEntry("Rotate clockwise      Mouse wheel", 13);
+	glutAddMenuEntry("Rotate anticlockwise  Mouse wheel", 14);
 
-	glutAddMenuEntry("Enlarge    +", 15);
-	glutAddMenuEntry("Reduce    -", 16);
+	glutAddMenuEntry("Enlarge               +", 15);
+	glutAddMenuEntry("Reduce                -", 16);
 
-	glutAddMenuEntry("Move    Mouse", 17);
+	glutAddMenuEntry("Move                  Mouse", 17);
 
 	int mainMenu = glutCreateMenu(menu);
-	glutAddMenuEntry("Add Quad Strip    q", 1);
-	glutAddMenuEntry("Delete Quad Strip    Q", 2);
+	glutAddMenuEntry("Add Quad Strip     q", 1);
+	glutAddMenuEntry("Delete Quad Strip  Q", 2);
 	glutAddSubMenu("Recently used Quad Strip menu", quadMenu);
 
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
