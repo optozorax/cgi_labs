@@ -2,7 +2,7 @@
 
 \section{Цель работы}
 
-Ознакомиться с основными аспектами метода трассировки лучей.
+\noindent Ознакомиться с основными аспектами метода трассировки лучей.
 
 \section{Постановка задачи}
 
@@ -21,30 +21,32 @@
 \section{Реализованные функции}
 
 \noindent\normalsize{\begin{easylist}
-\ListProperties(Hide=100, Hang1=true, 
+\ListProperties(Hide=100, Hang=true, 
 	Progressive*=.5cm,%	
-	Style1*=\textbullet ,%
-	Style2*=\textopenbullet )
-& \textbf{Два типа рендеринга.}
-&& Ray Tracing --- обычная трассировка лучей, которая может отобразить картинку с малым количеством семплов. Трейсинг лучей останавливается при достижении материала с цветом, и рендерит вторичные лучи, только если попадает на преломляющую или зеркальную поверхность.
-&& Path Tracing ---  методика рендеринга в компьютерной графике, которая стремится симулировать физическое поведения света настолько близко к реальному, насколько это возможно. Трейсинг лучей останавливается только при достижении предела отражений, или при достижении источника света.
+	Style1*=\textbullet$\mspace{9mu}$,%
+	Style2*=\textopenbullet$\mspace{9mu}$,%
+	Style3*=$\diamond\mspace{9mu}$)
 & \textbf{Полиморфизм.}
-&& Полиморфизм объектов --- имеется два типа объектов: object и shape.
-&&& Object --- объект, котороый неразрывно связан со своим собственным материалом, например: небо, cubemap, текстурированный полигон.
-&&& Shape --- объект, которому можно задать любой имеющийся материал, например, это объекты: сфера, цилиндр, полигон, треугольник, портал, контур (состоит из сфер и цилиндров).
-&& Полиморфизм камер --- можно рендерить картинку совершенно различными камерами, которые наследуются от абстрактного класса базовой камеры и реализуют виртуальные методы. Таким образом уже реализованы камеры: перспективная, ортогональная, 360. Так же можно реализовать другие камеры, например: проекцию Панини, камера для создания cubemap.
-&& Полиморфизм материалов --- любому объекту можно задать любой материал на его поверхности, например реализованы такие материалы, как: рассеивающий, отражающий, стекло, освещение. Аналогично для реализации материала надо наследоваться от базового класса материала и реализовать метод обработки луча материалом.
+&& \textbf{Различные подходы к рендерингу.} --- одну и ту же сцену можно рендерить различными классами и получать соответственно различную скорость и фотореалистичность.
+&&& \textbf{Ray Tracing} --- обычная трассировка лучей, которая может отобразить картинку с малым количеством семплов. Трейсинг лучей останавливается при достижении материала с цветом, и рендерит вторичные лучи, только если попадает на преломляющую или зеркальную поверхность.
+&&& \textbf{Path Tracing} ---  методика рендеринга в компьютерной графике, которая стремится симулировать физическое поведения света настолько близко к реальному, насколько это возможно. Трейсинг лучей останавливается только при достижении предела отражений, или при достижении источника света.
+&& \textbf{Полиморфизм объектов} --- имеется два типа объектов: object и shape.
+&&& \textbf{Object} --- объект, котороый неразрывно связан со своим собственным материалом, например: небо, cubemap, текстурированный полигон.
+&&& \textbf{Shape} --- объект, которому можно задать любой имеющийся материал, например, это объекты: сфера, цилиндр, полигон, треугольник, портал, контур (состоит из сфер и цилиндров).
+&& \textbf{Полиморфизм камер} --- можно рендерить картинку совершенно различными камерами, которые наследуются от абстрактного класса базовой камеры и реализуют виртуальные методы. Таким образом уже реализованы камеры: перспективная, ортогональная, 360. Так же можно реализовать другие камеры, например: проекцию Панини, камера для создания cubemap.
+&& \textbf{Полиморфизм материалов} --- любому объекту можно задать любой материал на его поверхности, например реализованы такие материалы, как: рассеивающий, отражающий, стекло, освещение. Аналогично для реализации материала надо наследоваться от базового класса материала и реализовать метод обработки луча материалом.
 & \textbf{Точечные источники света} поддерживаются на уровне рендерера.
 & \textbf{Рендеринг порталов.} Портал является shape, потому что можно задать какой материал будет на двух его задних частях. Он сам задается как полигон и две системы координат.
-&& Поддерживается телепортирование освещения от точечных источников света через порталы. При этой телепортации учитывается, что некоторая часть света может не пройти через портал.
+&& Поддерживается \textbf{телепортирование освещения} от точечных источников света через порталы. При этой телепортации учитывается, что некоторая часть света может не пройти через портал.
 & \textbf{Считывание произвольной сцены из многоугольников, с анимацией, из \texttt{json} файла.}
 & \textbf{Поддержка текстур.} Реализуется эта поддержка в классе текстурированного полигона.
 & Рендеринг произвольных полигонов.
-& Для path tracing камерой поддерживается симуляция прохождения луча через диафргаму, поэтому можно получить эффект depth of field: когда камера на чем-то сфокусирована, а остальная часть мира размыта.
-& Рендеринг происходит в многопоточном режиме.
+& Для path tracing камерой поддерживается симуляция прохождения луча через диафргаму, поэтому можно получить эффект \textbf{depth of field}: когда камера на чем-то сфокусирована, а остальная часть мира размыта.
+& Рендеринг происходит в \textbf{многопоточном режиме}.
 & Имеется возможность одновременно с обычным изображением рендерить изображение глубины.
 & Имеется возможность сохранять отрендеренные изображения в png.
 & При рендеринге пиксели выбираются случайным образом, чтобы максимально точно предсказывать итоговое время рендеринга, которое выводится на экран.
+& Возможность задавать количество семплов для одного пикселя. В данной работе обычно выбирается 16 семплов для ray tracing, и 400 для path tracing.
 \end{easylist}}
 
 \section{Пример реализованных функций}
@@ -68,13 +70,15 @@
 
 \imgtwo{img/standard_scene_2_ray_perspective.png}{0.49}{img/standard_scene_2_path_perspective.png}{0.49}
 
+Слева --- \textbf{Ray Tracing}, справа --- \textbf{Path Tracing}. На первой сцене присутствуют точечные источники света, а на второй точечный источник света присутствует только для \textbf{ray tracing}, поэтому картинка с \textbf{path tracing} выглядит такой темной. потому что весь свет там получится от светящегося полигона сверху, вероятность попадания в который невелика. 
+
+Слева освещение получается только от фонового освещения и точечных источников света. Справа же освещение получается от трассировки вторичных лучей, которые идут в случайном направлении от рассеивающего материала. Благодаря этому получается очень фотореалистичная картинка, а так же такие эффекты, как: \textbf{глубина резкости} --- размытие ближних и дальних объектов, не попавших в фокус; \textbf{каустика} --- явление попадания большого количества света в одно место, её можно наблюдать под стекляной сферой на картинке с комнатой; освещение от зелёной и красной стены на полу рядом со стекляной сферой --- тоже эффект от вторичного трейсинга лучей; освещение потолка зелёным цветом --- от зелёной стены.
+
 \subsection{Различные виды камер}
 
 \subsubsection{Ортогональная}
 
-\img{img/standard_scene_ray_orthogonal.png}{0.7}
-
-\img{img/standard_scene_2_ray_orthogonal.png}{0.7}
+\imgtwo{img/standard_scene_ray_orthogonal.png}{0.49}{img/standard_scene_2_ray_orthogonal.png}{0.49}
 
 \subsubsection{Камера на 360 градусов}
 
@@ -91,6 +95,8 @@
 \img{img/screen_360_2.png}{1}
 
 \subsection{Телепортация освещения от точечного источника света через портал}
+
+Маленькой сферой показано положение точечного источника света. Темно-синий портал связан с красным, а голубой с оранжевым. Свет проходит через все порталы и освещает пол снизу. Так же некоторые части освещения от этого же источника света накладываются друг на друга, хотя источник света один. Эффект примерно такой же, как и от зеркал, но работает с порталами.
 
 \img{img/portal_light_test1_1.png}{1}
 
@@ -112,34 +118,83 @@
 
 \subsection{Пример предсказания времени рендеринга}
 
+Так как рендеринг изображения при помощи \textbf{path tracing} может занимать часы, иногда бывает необходимо знать точное время рендеринга. Специально для этого каждые $n$ отрендеренных пикселей собирается информация о времени рендеринга, находится процент завершенной работы и предсказывается время всего рендеринга. Так же для увеличения точности, все пиксели для рендеринга берутся в случайном порядке. Если же не делать этого случайного выбора пикселей, то у нас на изображении, у которого сверху небо, и соответственно, нет никаких вторичных лучей, будет очень быстро отрендерена верхняя часть, в то время, когда нижняя часть будет рендериться очень долго. Поэтому пиксели надо брать в случsайном порядке.
+
 \img{img/log.png}{0.7}
 
 \section{Код программы}
 
+Код находится в открытом доступе по адресу: \href{https://github.com/optozorax/path-tracing}{path-tracing}. Зависимости: \href{https://github.com/optozorax/space_objects}{space-objects} --- для вычислений с системами координат; \href{https://github.com/nothings/stb}{stb} --- для сохранения результата в png; \href{https://github.com/nlohmann/json}{json}, \href{https://github.com/optozorax/portals_opengl}{portals-opengl} --- для работы кода по считыванию сцены из json.
+
 \subsection{Файлы заголовков}
 
-% \mycodeinput{c++}{code/fragment.h}{fragment.h}
-% \mycodeinput{c++}{code/framebuffer.h}{framebuffer.h}
-% \mycodeinput{c++}{code/opengl_common.h}{opengl\_common.h}
-% \mycodeinput{c++}{code/plane.h}{plane.h}
-% \mycodeinput{c++}{code/scene_reader.h}{scene\_reader.h}
-% \mycodeinput{c++}{code/shader.h}{shader.h}
+\mycodeinput{c++}{code/include/pt/basics.h}{basics.h}
+\mycodeinput{c++}{code/include/pt/camera.h}{camera.h}
+\mycodeinput{c++}{code/include/pt/image.h}{image.h}
+\mycodeinput{c++}{code/include/pt/object.h}{object.h}
+\mycodeinput{c++}{code/include/pt/poly.h}{poly.h}
+\mycodeinput{c++}{code/include/pt/pt.h}{pt.h}
+\mycodeinput{c++}{code/include/pt/renderer.h}{renderer.h}
+\mycodeinput{c++}{code/include/pt/pt2easybmp.h}{pt2easybmp.h}
+
+\subsubsection{camera/}
+
+\mycodeinput{c++}{code/include/pt/camera/360.h}{360.h}
+\mycodeinput{c++}{code/include/pt/camera/orthogonal.h}{orthogonal.h}
+
+\subsubsection{material/}
+
+\mycodeinput{c++}{code/include/pt/material/light.h}{light.h}
+\mycodeinput{c++}{code/include/pt/material/reflect.h}{reflect.h}
+\mycodeinput{c++}{code/include/pt/material/refract.h}{refract.h}
+\mycodeinput{c++}{code/include/pt/material/scatter.h}{scatter.h}
+
+\subsubsection{object/}
+
+\mycodeinput{c++}{code/include/pt/object/cubemap.h}{cubemap.h}
+\mycodeinput{c++}{code/include/pt/object/scene.h}{scene.h}
+\mycodeinput{c++}{code/include/pt/object/sky.h}{sky.h}
+\mycodeinput{c++}{code/include/pt/object/texture_polygon.h}{texture\_polygon.h}
+
+\subsubsection{shape/}
+
+\mycodeinput{c++}{code/include/pt/shape/contour.h}{contour.h}
+\mycodeinput{c++}{code/include/pt/shape/cylinder.h}{cylinder.h}
+\mycodeinput{c++}{code/include/pt/shape/polygon.h}{polygon.h}
+\mycodeinput{c++}{code/include/pt/shape/portals.h}{portals.h}
+\mycodeinput{c++}{code/include/pt/shape/sphere.h}{sphere.h}
+\mycodeinput{c++}{code/include/pt/shape/triangle.h}{triangle.h}
 
 \subsection{Исходные файлы}
 
-% \mycodeinput{c++}{code/main.cpp}{main.cpp}
-% \mycodeinput{c++}{code/fragment.cpp}{fragment.cpp}
-% \mycodeinput{c++}{code/framebuffer.cpp}{framebuffer.cpp}
-% \mycodeinput{c++}{code/opengl_common.cpp}{opengl\_common.cpp}
-% \mycodeinput{c++}{code/plane.cpp}{plane.cpp}
-% \mycodeinput{c++}{code/scene_reader.cpp}{scene\_reader.cpp}
-% \mycodeinput{c++}{code/shader.cpp}{shader.cpp}
+\mycodeinput{c++}{code/src/360.cpp}{360.cpp}
+\mycodeinput{c++}{code/src/basics.cpp}{basics.cpp}
+\mycodeinput{c++}{code/src/camera.cpp}{camera.cpp}
+\mycodeinput{c++}{code/src/contour.cpp}{contour.cpp}
+\mycodeinput{c++}{code/src/cubemap.cpp}{cubemap.cpp}
+\mycodeinput{c++}{code/src/cylinder.cpp}{cylinder.cpp}
+\mycodeinput{c++}{code/src/image.cpp}{image.cpp}
+\mycodeinput{c++}{code/src/light.cpp}{light.cpp}
+\mycodeinput{c++}{code/src/orthogonal.cpp}{orthogonal.cpp}
+\mycodeinput{c++}{code/src/poly.cpp}{poly.cpp}
+\mycodeinput{c++}{code/src/polygon.cpp}{polygon.cpp}
+\mycodeinput{c++}{code/src/portals.cpp}{portals.cpp}
+\mycodeinput{c++}{code/src/pt2easybmp.cpp}{pt2easybmp.cpp}
+\mycodeinput{c++}{code/src/reflect.cpp}{reflect.cpp}
+\mycodeinput{c++}{code/src/refract.cpp}{refract.cpp}
+\mycodeinput{c++}{code/src/renderer.cpp}{renderer.cpp}
+\mycodeinput{c++}{code/src/scatter.cpp}{scatter.cpp}
+\mycodeinput{c++}{code/src/scene.cpp}{scene.cpp}
+\mycodeinput{c++}{code/src/sky.cpp}{sky.cpp}
+\mycodeinput{c++}{code/src/sphere.cpp}{sphere.cpp}
+\mycodeinput{c++}{code/src/texture_polygon.cpp}{texture\_polygon.cpp}
+\mycodeinput{c++}{code/src/triangle.cpp}{triangle.cpp}
 
-\subsection{Шейдеры}
+\subsection{Сцены}
 
-% \mycodeinput{c++}{code/draw.fragment.glsl}{draw.fragment.glsl}
-% \mycodeinput{c++}{code/draw.vertex.glsl}{draw.vertex.glsl}
-% \mycodeinput{c++}{code/drawpoly.fragment.glsl}{drawpoly.fragment.glsl}
-% \mycodeinput{c++}{code/drawpoly.vertex.glsl}{drawpoly.vertex.glsl}
-% \mycodeinput{c++}{code/merge.fragment.glsl}{merge.fragment.glsl}
-% \mycodeinput{c++}{code/merge.vertex.glsl}{merge.vertex.glsl}
+\mycodeinput{c++}{code/examples/hello_world.cpp}{hello\_world.cpp}
+\mycodeinput{c++}{code/examples/polygon_test.cpp}{polygon\_test.cpp}
+\mycodeinput{c++}{code/examples/portal_light_test.cpp}{portal\_light\_test.cpp}
+\mycodeinput{c++}{code/examples/scene_raytracing.cpp}{scene\_raytracing.cpp}
+\mycodeinput{c++}{code/examples/standard_scene_2.cpp}{standard\_scene\_2.cpp}
+\mycodeinput{c++}{code/examples/standart_scene.cpp}{standard\_scene.cpp}
